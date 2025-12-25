@@ -126,15 +126,19 @@ def predict_credit(
 
     df = pd.DataFrame([data])
 
+    # match training preprocessing
     df = pd.get_dummies(df)
     df = df.reindex(columns=feature_names, fill_value=0)
-    df = df.fillna(0)
 
-    pred = log_model.predict(df)[0]
+    # -------- probability instead of predict() --------
+    prob = log_model.predict_proba(df)[0][1]
 
-    label = "Good Credit" if pred == 1 else "Bad Credit"
+    # tune threshold if required
+    threshold = 0.40
 
-    return f"Logistic Regression Prediction: {label}"
+    label = "Good Credit" if prob >= threshold else "Bad Credit"
+
+    return f"Logistic Regression Prediction: {label} (probability = {prob:.2f})"
 
 
 # =======================
