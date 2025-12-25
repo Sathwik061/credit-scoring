@@ -11,7 +11,6 @@ xgb_model = joblib.load("xgboost_model.pkl")
 
 feature_names = joblib.load("model_features.pkl")
 
-
 # =======================
 # CATEGORY MAPPINGS
 # =======================
@@ -84,7 +83,6 @@ job_map = {
     "Management / self-employed": "A174",
 }
 
-
 # =======================
 # PREDICT FUNCTION
 # =======================
@@ -126,31 +124,30 @@ def predict_credit(
 
     df = pd.DataFrame([data])
 
+    # same preprocessing
     df = pd.get_dummies(df)
     df = df.reindex(columns=feature_names, fill_value=0)
     df = df.fillna(0)
 
-    # Logistic probability
-    log_prob = log_model.predict_proba(df)[0][1]
-    log_pred = 1 if log_prob >= 0.5 else 0
+    # ---- NO PROBABILITIES ----
+    log_pred = log_model.predict(df)[0]
+    rf_pred  = rf_model.predict(df)[0]
+    xgb_pred = xgb_model.predict(df)[0]
 
-    # Others
-    rf_raw = rf_model.predict(df)[0]
-    xgb_raw = xgb_model.predict(df)[0]
+    def normalize(val):
+        if isinstance(val, str):
+            return 1 if val.lower() == "good" else 0
+        return int(val)
 
-    def normalize(p):
-        if isinstance(p, str):
-            return 1 if p.lower() == "good" else 0
-        return int(p)
+    log_pred = normalize(log_pred)
+    rf_pred = normalize(rf_pred)
+    xgb_pred = normalize(xgb_pred)
 
-    rf_pred = normalize(rf_raw)
-    xgb_pred = normalize(xgb_raw)
-
-    def label(x):
-        return "Good Credit" if x == 1 else "Bad Credit"
+    def label(v):
+        return "Good Credit" if v == 1 else "Bad Credit"
 
     result = ""
-    result += f"Logistic Regression: {label(log_pred)} (prob={log_prob:.2f})\n"
+    result += f"Logistic Regression: {label(log_pred)}\n"
     result += f"Random Forest: {label(rf_pred)}\n"
     result += f"XGBoost: {label(xgb_pred)}\n"
 
@@ -158,7 +155,7 @@ def predict_credit(
 
 
 # =======================
-# GRADIO UI (Dropdowns!)
+# GRADIO UI
 # =======================
 inputs = [
     gr.Dropdown(list(checking_map.keys()), label="Checking Account Status"),
