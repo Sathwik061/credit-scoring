@@ -2,23 +2,27 @@ import gradio as gr
 import joblib
 import pandas as pd
 
-# =======================
+# =========================
 # LOAD MODELS + FEATURES
-# =======================
+# =========================
 log_model = joblib.load("logistic_model.pkl")
-rf_model = joblib.load("random_forest.pkl")
+rf_model  = joblib.load("random_forest.pkl")
 xgb_model = joblib.load("xgboost_model.pkl")
 
-# ---- XGBOOST COMPAT FIX (HuggingFace old xgboost runtime) ----
-if not hasattr(xgb_model, "label_encoder"):
-    xgb_model.label_encoder = None
+# ---- XGBOOST FIX (VERY IMPORTANT) ----
+# Models trained on older xgboost expect label_encoder
+try:
+    if not hasattr(xgb_model, "label_encoder"):
+        xgb_model.label_encoder = None
+except:
+    pass
 
 feature_names = joblib.load("model_features.pkl")
 
-# =======================
-# CATEGORY MAPPINGS
-# =======================
 
+# =========================
+# CATEGORY MAPPINGS
+# =========================
 checking_map = {
     "No account": "A11",
     "Balance < 0": "A12",
@@ -87,9 +91,10 @@ job_map = {
     "Management / self-employed": "A174",
 }
 
-# =======================
+
+# =========================
 # PREDICT FUNCTION
-# =======================
+# =========================
 def predict_credit(
     checking_acc_status,
     duration,
@@ -128,23 +133,23 @@ def predict_credit(
 
     df = pd.DataFrame([data])
 
-    # same preprocessing
+    # Match training features
     df = pd.get_dummies(df)
     df = df.reindex(columns=feature_names, fill_value=0)
     df = df.fillna(0)
 
-    # ---- NO PROBABILITIES ----
+    # MODEL PREDICTIONS (NO PROBA)
     log_pred = log_model.predict(df)[0]
     rf_pred  = rf_model.predict(df)[0]
     xgb_pred = xgb_model.predict(df)[0]
 
-    def normalize(val):
-        if isinstance(val, str):
-            return 1 if val.lower() == "good" else 0
-        return int(val)
+    def normalize(v):
+        if isinstance(v, str):
+            return 1 if v.lower() == "good" else 0
+        return int(v)
 
     log_pred = normalize(log_pred)
-    rf_pred = normalize(rf_pred)
+    rf_pred  = normalize(rf_pred)
     xgb_pred = normalize(xgb_pred)
 
     def label(v):
@@ -158,9 +163,9 @@ def predict_credit(
     return result
 
 
-# =======================
+# =========================
 # GRADIO UI
-# =======================
+# =========================
 inputs = [
     gr.Dropdown(list(checking_map.keys()), label="Checking Account Status"),
     gr.Number(label="Duration (months)"),
