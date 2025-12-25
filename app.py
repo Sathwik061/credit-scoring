@@ -9,9 +9,9 @@ log_model = joblib.load("logistic_model.pkl")
 rf_model = joblib.load("random_forest.pkl")
 xgb_model = joblib.load("xgboost_model.pkl")
 
-# Fix compatibility for newer XGBoost versions
-if hasattr(xgb_model, "use_label_encoder"):
-    xgb_model.use_label_encoder = False
+# ---- XGBOOST COMPAT FIX (HuggingFace old xgboost runtime) ----
+if not hasattr(xgb_model, "label_encoder"):
+    xgb_model.label_encoder = None
 
 feature_names = joblib.load("model_features.pkl")
 
@@ -128,10 +128,12 @@ def predict_credit(
 
     df = pd.DataFrame([data])
 
+    # same preprocessing
     df = pd.get_dummies(df)
     df = df.reindex(columns=feature_names, fill_value=0)
     df = df.fillna(0)
 
+    # ---- NO PROBABILITIES ----
     log_pred = log_model.predict(df)[0]
     rf_pred  = rf_model.predict(df)[0]
     xgb_pred = xgb_model.predict(df)[0]
